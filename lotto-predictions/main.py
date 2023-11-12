@@ -1,98 +1,157 @@
+from typing import Set, Dict
 from random import randint
 from math import isinf
 
-print('WELCOME TO THE SIMULATOR OF HITTING SIXES IN THE LOTTO')
-print("REMEMBER! YOU CAN ONLY SELECT NUMBERS BETWEEN 1 AND 49, BUT THEY CAN'T REPEAT\n")
 
-def how_much_money():
+def money_to_invest_per_week() -> float:
     while True:
         try:
-            invested_money = float(input('Enter how much money do you want to invest per week: '))
-            if isinf(invested_money):
-                print('You cannot give infinity!')
+            money = float(input("Enter how much money do you want to invest per week: "))
+            if isinf(money):
+                print("You cannot invest infinity!\n")
+            elif money <= 0:
+                print("You cannot invest negative or equals to zero numbers!\n")
             else:
-                return invested_money
-        except ValueError:
-            print('Only numbers can be entered!')
+                return money
 
-def currency_of_money():
+        except ValueError:
+            print("Only numbers can be entered!\n")
+
+
+def currency_of_money() -> str:
     while True:
-        currency = str(input('Enter the currency in which you want to pay (You can choose: EUR, USD or PLN): '))
-        if currency.upper() in ('EUR', 'USD', 'PLN'):
+        currency = input("Enter the currency in which you want to invest (You can choose: EUR, USD or PLN): ")
+        if currency.upper() in ("EUR", "USD", "PLN"):
             return currency
         else:
-            print('You can choose only between EUR, USD or PLN')
+            print("You can choose only between EUR, USD or PLN\n")
 
-def how_often_to_draws():
+
+def frequency_of_draws_per_week() -> int:
     while True:
-        how_often = int(input('Enter how many times a week do you want to draw (you can only 1 to 3 times): '))
-        if how_often in (1, 2, 3):
-            return how_often
+        frequency = input("Enter how many times a week do you want to draw (you can only 1 to 3 times): ")
+        if frequency in ("1", "2", "3"):
+            return int(frequency)
         else:
-            print('You can choose only 1, 2 or 3')
+            print("You can choose only 1, 2 or 3\n")
 
-def entering_player_numbers():
+
+def enter_player_numbers() -> Set[int]:
     player_numbers = set()
-    while len(player_numbers) < 6:
+    while len(player_numbers) < AMOUNT_OF_NUMBERS_IN_LOTTO:
         try:
-            entered_number = int(input(f'Enter the {len(player_numbers)+1} number: '))
-            if 1 <= entered_number <= 49:
+            entered_number = int(input(f"Enter the {len(player_numbers) + 1} number: "))
+            if MIN_NUMBER_IN_LOTTO <= entered_number <= MAX_NUMBER_IN_LOTTO:
+
                 if entered_number not in player_numbers:
                     player_numbers.add(entered_number)
                 else:
-                    print("You can't give the same number several times!")
-                    print('Please enter a different number!')
+                    print(
+                        "You can't give the same number several times!\n"
+                        "Please enter a different number!\n"
+                    )
+
             else:
-                print('You entered a number outside the range')
-                print('Enter a new number between 1 and 49!')
+                print(
+                    "You entered a number outside the range\n"
+                    "Enter a new number between 1 and 49!\n"
+                )
+
         except ValueError:
-            print('You can only enter natural numbers')
+            print("You can only enter natural numbers\n")
 
     return player_numbers
 
-def drawing_of_winning_numbers():
-    winning_numbers = set()
-    while len(winning_numbers) < 6:
-        winning_numbers.add(randint(1, 49))
 
-    return winning_numbers
+def draw_win_numbers() -> Set[int]:
+    win_numbers = set()
+    while len(win_numbers) < AMOUNT_OF_NUMBERS_IN_LOTTO:
+        win_numbers.add(randint(MIN_NUMBER_IN_LOTTO, MAX_NUMBER_IN_LOTTO))
 
-def main(spent_money_per_week, type_of_currency, frequency_of_draws, player_numbers):
-    random_six_numbers = drawing_of_winning_numbers()
-    print(f'Your numbers: {sorted(player_numbers)}\n')
-    print('Calculations...\n')
+    return win_numbers
 
-    drawn_three = drawn_four = drawn_five = weeks = 0
-    while player_numbers != random_six_numbers:
-        counter = 0
-        for i in player_numbers:
-            if i in random_six_numbers:
-                counter += 1
 
-        if counter == 3:
-            drawn_three += 1
-        elif counter == 4:
-            drawn_four += 1
-        elif counter == 5:
-            drawn_five += 1
+class Simulation:
+    def __init__(self, player_numbers: Set[int]) -> None:
+        self.player_numbers = player_numbers
+        self.weeks = 0
+        self.hit_specific_numbers = {
+            "three": 0,
+            "four": 0,
+            "five": 0,
+        }
 
-        weeks += 1
-        random_six_numbers = drawing_of_winning_numbers()
+    def hit_numbers(self) -> Dict[str, int]:
+        win_numbers = draw_win_numbers()
 
-    days = weeks * 7 / frequency_of_draws
-    years = (int(days / 365))
+        print(f"\nYour numbers: {', '.join(map(str, self.player_numbers))}")
+        print("Calculations...\n")
 
-    if days >= 365:
-        how_many_days = (days - years * 365)
-    else:
-        how_many_days = days
+        while self.player_numbers != win_numbers:
+            counter = 0
 
-    print(f'The six fell out after {years} years and {int(how_many_days)} days')
-    print(f'You spent {weeks * spent_money_per_week} {type_of_currency}')
-    print(f'During the draw:\n'
-          f'three were drawn {drawn_three} times\n'
-          f'four were drawn {drawn_four} times\n'
-          f'five were drawn {drawn_five} times')
+            for player_number in self.player_numbers:
+                if player_number in win_numbers:
+                    counter += 1
+
+            if counter == 3:
+                self.hit_specific_numbers["three"] += 1
+            elif counter == 4:
+                self.hit_specific_numbers["four"] += 1
+            elif counter == 5:
+                self.hit_specific_numbers["five"] += 1
+
+            self.weeks += 1
+            win_numbers = draw_win_numbers()
+
+        return self.hit_specific_numbers
+
+    def spent_time(self, draws_per_week: int) -> Dict[str, int]:
+        days = self.weeks * 7 // draws_per_week
+        spent_years = (days // 365)
+
+        if days >= 365:
+            spent_days = days - spent_years * 365
+        else:
+            spent_days = days
+
+        return {
+            "years": spent_years,
+            "days": spent_days
+        }
+
+
+def main() -> None:
+    print(
+        "WELCOME TO THE LOTTO PREDICTIONS. "
+        "WE WILL SIMULATE HITTING A SIX IN THE LOTTO.\n"
+        "REMEMBER! YOU CAN ONLY SELECT NUMBERS BETWEEN 1 AND 49, BUT THEY CAN'T REPEAT.\n"
+    )
+
+    spent_money_per_week = money_to_invest_per_week()
+    type_of_currency = currency_of_money()
+    draws_per_week = frequency_of_draws_per_week()
+
+    app = Simulation(enter_player_numbers())
+    hit_numbers = app.hit_numbers()
+    spent_time = app.spent_time(draws_per_week)
+
+    print(
+        f"The six fell out after {spent_time['years']} year{'s' if spent_time['years'] > 1 else ''} and "
+        f"{spent_time['days']} day{'s' if spent_time['days'] > 1 else ''}"
+    )
+    print(f"You spent {app.weeks * spent_money_per_week} {type_of_currency}\n")
+    print(
+        f"During the draw:\n"
+        f"three was drawn {hit_numbers['three']} time{'s' if hit_numbers['three'] > 1 else ''}\n"
+        f"four was drawn {hit_numbers['four']} time{'s' if hit_numbers['four'] > 1 else ''}\n"
+        f"five was drawn {hit_numbers['five']} time{'s' if hit_numbers['five'] > 1 else ''}"
+    )
+
 
 if __name__ == '__main__':
-    main(how_much_money(), currency_of_money(), how_often_to_draws(), entering_player_numbers())
+    MIN_NUMBER_IN_LOTTO = 1
+    MAX_NUMBER_IN_LOTTO = 49
+    AMOUNT_OF_NUMBERS_IN_LOTTO = 6
+
+    main()
