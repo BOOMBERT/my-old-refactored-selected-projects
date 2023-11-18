@@ -38,9 +38,16 @@ def frequency_of_draws_per_week() -> int:
 
 def enter_player_numbers() -> Set[int]:
     player_numbers = set()
+    number_ending = {1: "st", 2: "nd", 3: "rd"}
+
     while len(player_numbers) < AMOUNT_OF_NUMBERS_IN_LOTTO:
         try:
-            entered_number = int(input(f"Enter the {len(player_numbers) + 1} number: "))
+            which_number_is_entered = len(player_numbers) + 1
+            entered_number = int(input(
+                f"Enter the {which_number_is_entered}"
+                f"{number_ending[which_number_is_entered] if which_number_is_entered in number_ending else 'th'} "
+                f"number: "
+            ))
             if MIN_NUMBER_IN_LOTTO <= entered_number <= MAX_NUMBER_IN_LOTTO:
 
                 if entered_number not in player_numbers:
