@@ -1,78 +1,28 @@
-from typing import Tuple
-from keyboard import is_pressed
 from tkinter import TclError
-import turtle
+from turtle import Screen
 
-
-class Player:
-    def __init__(self, size: tuple[int, int], color: str) -> None:
-        self._player = turtle.Turtle()
-        self._player.speed(0)
-        self._player.shape("square")
-        self._player.shapesize(*size)
-        self._player.color(color)
-        self._player.penup()
-        self.size = size
-
-    def set_position(self, position: Tuple[int, int]) -> None:
-        self._player.setpos(*position)
-
-    @property
-    def vertical_position(self) -> float:
-        return self._player.ycor()
-
-    @vertical_position.setter
-    def vertical_position(self, value: int) -> None:
-        self._player.sety(value)
+from components import Player, Ball
 
 
 class Game:
-    MOVEMENT_SPEED = 2
-
-    def __init__(self, window: turtle.Screen, left_player: Player, right_player: Player) -> None:
+    def __init__(self, window: Screen, left_player: Player, right_player: Player, ball: Ball) -> None:
         self._window = window
         self._left_player = left_player
         self._right_player = right_player
+        self._ball = ball
         self.running = True
 
-    def players_movement(self) -> None:
-        if not (is_pressed("w") and is_pressed("s")):
-            if is_pressed("w"):
-                self._left_player.vertical_position = self._left_player.vertical_position + self.MOVEMENT_SPEED
-            elif is_pressed("s"):
-                self._left_player.vertical_position = self._left_player.vertical_position - self.MOVEMENT_SPEED
+    def players_control(self) -> None:
+        self._left_player.movement()
+        self._right_player.movement()
 
-        if not (is_pressed("Up") and is_pressed("Down")):
-            if is_pressed("Up"):
-                self._right_player.vertical_position = self._right_player.vertical_position + self.MOVEMENT_SPEED
-            elif is_pressed("Down"):
-                self._right_player.vertical_position = self._right_player.vertical_position - self.MOVEMENT_SPEED
-
-    def block_arena_exit(self) -> None:
-        if (self._left_player.vertical_position <=
-                -self._window.window_height() // 2 + self._left_player.size[0] * 10 + 10):
-            self._left_player.vertical_position = (
-                    -self._window.window_height() // 2 + self._left_player.size[0] * 10 + 10)
-
-        elif (self._left_player.vertical_position >=
-                self._window.window_height() // 2 - self._left_player.size[0] * 10):
-            self._left_player.vertical_position = (
-                    self._window.window_height() // 2 - self._left_player.size[0] * 10)
-
-        if (self._right_player.vertical_position <=
-                -self._window.window_height() // 2 + self._right_player.size[0] * 10 + 10):
-            self._right_player.vertical_position = (
-                    -self._window.window_height() // 2 + self._right_player.size[0] * 10 + 10)
-
-        elif (self._right_player.vertical_position >=
-                self._window.window_height() // 2 - self._right_player.size[0] * 10):
-            self._right_player.vertical_position = (
-                    self._window.window_height() // 2 - self._right_player.size[0] * 10)
+        self._left_player.block_area_exit(self._window.window_height())
+        self._right_player.block_area_exit(self._window.window_height())
 
     def main_loop(self) -> None:
         while self.running:
-            self.players_movement()
-            self.block_arena_exit()
+            self.players_control()
+            self._ball.movement()
             self._window.update()
 
 
@@ -80,7 +30,7 @@ def main() -> None:
     WINDOW_WIDTH = 1800
     WINDOW_HEIGHT = 800
 
-    window = turtle.Screen()
+    window = Screen()
     window.title("PONG")
     window.bgcolor("black")
     window.setup(WINDOW_WIDTH, WINDOW_HEIGHT)
@@ -89,16 +39,28 @@ def main() -> None:
 
     PLAYERS_SIZE = (10, 1)
     PLAYERS_COLOR = "red"
-    DISTANCE_FROM_WINDOW_EDGE = 20
+    PLAYERS_MOVEMENT_SPEED = 2
+    PLAYERS_DISTANCE_FROM_WINDOW_EDGE = 20
 
-    left_player = Player(PLAYERS_SIZE, PLAYERS_COLOR)
-    right_player = Player(PLAYERS_SIZE, PLAYERS_COLOR)
+    left_player = Player(
+        (-WINDOW_WIDTH // 2 + PLAYERS_DISTANCE_FROM_WINDOW_EDGE, 0),
+        PLAYERS_SIZE,
+        PLAYERS_COLOR,
+        ("w", "s"),
+        PLAYERS_MOVEMENT_SPEED
+    )
+    right_player = Player(
+        (WINDOW_WIDTH // 2 - (PLAYERS_DISTANCE_FROM_WINDOW_EDGE + 5), 0),
+        PLAYERS_SIZE,
+        PLAYERS_COLOR,
+        ("Up", "Down"),
+        PLAYERS_MOVEMENT_SPEED
+    )
 
-    left_player.set_position((-WINDOW_WIDTH // 2 + DISTANCE_FROM_WINDOW_EDGE, 0))
-    right_player.set_position((WINDOW_WIDTH // 2 - (DISTANCE_FROM_WINDOW_EDGE + 5), 0))
+    ball = Ball(1, "blue", 0.5)
 
     try:
-        game = Game(window, left_player, right_player)
+        game = Game(window, left_player, right_player, ball)
         game.main_loop()
     except TclError:
         pass
