@@ -1,7 +1,8 @@
 from tkinter import TclError
-from turtle import Screen
+from turtle import Screen, mainloop, Terminator
 
 from components import Player, Ball
+from helper import to_px
 
 
 class Game:
@@ -10,20 +11,177 @@ class Game:
         self._left_player = left_player
         self._right_player = right_player
         self._ball = ball
+        self.window_height = window.window_height()
+        self.window_width = window.window_width()
         self.running = True
+        self.delay = 1000 // 60
+        self.ball_size_in_px = to_px(ball.size)
 
     def players_control(self) -> None:
         self._left_player.movement()
         self._right_player.movement()
 
-        self._left_player.block_area_exit(self._window.window_height())
-        self._right_player.block_area_exit(self._window.window_height())
+        self._left_player.block_area_exit(self.window_height)
+        self._right_player.block_area_exit(self.window_height)
+
+    def ball_control(self) -> None:
+        self._ball.movement()
+        self._ball.block_area_exit(self.window_height)
+
+    def bounce_of_ball_of_top_edge_of_player(
+            self,
+            player_top_bounce_position: float,
+            player_movement_speed: float
+    ) -> bool:
+        return (
+                player_top_bounce_position - self._ball.speed - player_movement_speed <=
+                self._ball.get_vertical_position()
+                <= player_top_bounce_position
+        )
+
+    def bounce_of_ball_of_bottom_edge_of_player(
+            self,
+            player_bottom_bounce_position: float,
+            player_movement_speed: float
+    ) -> bool:
+        return (
+                player_bottom_bounce_position + self._ball.speed + player_movement_speed >=
+                self._ball.get_vertical_position()
+                >= player_bottom_bounce_position
+        )
+
+    def bounce_the_ball_by_right_player(
+            self,
+            player_width_in_px,
+            player_height_in_px,
+            player_bounce_horizontal_position
+    ) -> None:
+        player_top_bounce_position = (
+                self._right_player.get_vertical_position() + player_height_in_px / 2 + self.ball_size_in_px / 2
+        )
+        player_bottom_bounce_position = (
+                self._right_player.get_vertical_position() - player_height_in_px / 2 - self.ball_size_in_px / 2
+        )
+
+        if (
+                player_bounce_horizontal_position <=
+                self._ball.get_horizontal_position()
+                < player_bounce_horizontal_position + self._ball.speed
+                and
+                player_top_bounce_position >
+                self._ball.get_vertical_position()
+                > player_bottom_bounce_position
+        ):
+            self._ball.horizontal_trajectory = -1
+
+        if (
+                player_bounce_horizontal_position <=
+                self._ball.get_horizontal_position()
+                <= player_bounce_horizontal_position +
+                player_width_in_px + self.ball_size_in_px + self._ball.speed
+        ):
+            if self.bounce_of_ball_of_top_edge_of_player(
+                    player_top_bounce_position, self._right_player.movement_speed
+            ):
+                self._ball.vertical_trajectory = 1
+
+            elif self.bounce_of_ball_of_bottom_edge_of_player(
+                    player_bottom_bounce_position, self._right_player.movement_speed
+            ):
+                self._ball.vertical_trajectory = -1
+
+    def bounce_the_ball_by_left_player(
+            self,
+            player_width_in_px,
+            player_height_in_px,
+            player_bounce_horizontal_position
+    ) -> None:
+        player_top_bounce_position = (
+                self._left_player.get_vertical_position() + player_height_in_px / 2 + self.ball_size_in_px / 2
+        )
+        player_bottom_bounce_position = (
+                self._left_player.get_vertical_position() - player_height_in_px / 2 - self.ball_size_in_px / 2
+        )
+
+        if (
+                player_bounce_horizontal_position >=
+                self._ball.get_horizontal_position()
+                > player_bounce_horizontal_position - self._ball.speed
+                and
+                player_top_bounce_position >
+                self._ball.get_vertical_position()
+                > player_bottom_bounce_position
+        ):
+            self._ball.horizontal_trajectory = 1
+
+        if (
+                player_bounce_horizontal_position >=
+                self._ball.get_horizontal_position()
+                >= player_bounce_horizontal_position -
+                player_width_in_px - self.ball_size_in_px - self._ball.speed
+        ):
+            if self.bounce_of_ball_of_top_edge_of_player(
+                    player_top_bounce_position, self._left_player.movement_speed
+            ):
+                self._ball.vertical_trajectory = 1
+
+            elif self.bounce_of_ball_of_bottom_edge_of_player(
+                    player_bottom_bounce_position, self._left_player.movement_speed
+            ):
+                self._ball.vertical_trajectory = -1
+
+    def bounce_the_ball_by_players(self) -> None:
+        if self._ball.get_horizontal_position() > 0:
+            if self._ball.horizontal_trajectory == 1:
+
+                right_player_width_in_px = to_px(self._right_player.size[1])
+                right_player_height_in_px = to_px(self._right_player.size[0])
+
+                right_player_bounce_horizontal_position = (
+                        self.window_width / 2 -
+                        (self.window_width / 2 - self._right_player.get_horizontal_position()) -
+                        right_player_width_in_px / 2 - self.ball_size_in_px / 2
+                )
+
+                self.bounce_the_ball_by_right_player(
+                    right_player_width_in_px,
+                    right_player_height_in_px,
+                    right_player_bounce_horizontal_position
+                )
+
+        else:
+            if self._ball.horizontal_trajectory == -1:
+
+                left_player_width_in_px = to_px(self._left_player.size[1])
+                left_player_height_in_px = to_px(self._left_player.size[0])
+
+                left_player_bounce_horizontal_position = (
+                        -self.window_width / 2 +
+                        (self.window_width / 2 + self._left_player.get_horizontal_position()) +
+                        left_player_width_in_px / 2 + self.ball_size_in_px / 2
+                )
+
+                self.bounce_the_ball_by_left_player(
+                    left_player_width_in_px,
+                    left_player_height_in_px,
+                    left_player_bounce_horizontal_position
+                )
+
+    def update_game(self) -> None:
+        if self.running:
+            self.players_control()
+            self.ball_control()
+            self.bounce_the_ball_by_players()
+
+            self._window.update()
+            self._window.ontimer(self.update_game, self.delay)
+
+        else:
+            self._window.bye()
 
     def main_loop(self) -> None:
-        while self.running:
-            self.players_control()
-            self._ball.movement()
-            self._window.update()
+        self.update_game()
+        mainloop()
 
 
 def main() -> None:
@@ -39,7 +197,7 @@ def main() -> None:
 
     PLAYERS_SIZE = (10, 1)
     PLAYERS_COLOR = "red"
-    PLAYERS_MOVEMENT_SPEED = 2
+    PLAYERS_MOVEMENT_SPEED = 10
     PLAYERS_DISTANCE_FROM_WINDOW_EDGE = 20
 
     left_player = Player(
@@ -50,222 +208,21 @@ def main() -> None:
         PLAYERS_MOVEMENT_SPEED
     )
     right_player = Player(
-        (WINDOW_WIDTH // 2 - (PLAYERS_DISTANCE_FROM_WINDOW_EDGE + 5), 0),
+        (WINDOW_WIDTH // 2 - (PLAYERS_DISTANCE_FROM_WINDOW_EDGE + 7), 0),
         PLAYERS_SIZE,
         PLAYERS_COLOR,
         ("Up", "Down"),
         PLAYERS_MOVEMENT_SPEED
     )
 
-    ball = Ball(1, "blue", 0.5)
+    ball = Ball(1, "blue", 5)
 
     try:
         game = Game(window, left_player, right_player, ball)
         game.main_loop()
-    except TclError:
+    except (TclError, Terminator):
         pass
 
 
 if __name__ == "__main__":
     main()
-
-
-# import turtle
-# from winsound import Beep
-# from random import randrange
-# from time import sleep, time
-#
-# #WINDOW SIZE
-# WIDTH = 1800
-# HEIGHT = 800
-#
-# #CREATE THE WINDOW
-# window = turtle.Screen()
-# window.title('PONG')
-# window.setup(WIDTH, HEIGHT)
-# window.bgcolor('black')
-# window.tracer(0)
-#
-# #QUIT THE PROGRAM
-# def quit():
-#     global running
-#     running = False
-#
-# SIZE = 10
-# #CREATE A PLAYER 1 (LEFT PLAYER)
-# player_1 = turtle.Turtle()
-# player_1.speed(0)
-# player_1.shape('square')
-# player_1.shapesize(SIZE, 1)
-# player_1.color('red')
-# player_1.penup()
-# player_1.goto(-WIDTH/2 + 20, 0)
-#
-# #CREATE A PLAYER 2 (RIGHT PLAYER)
-# player_2 = turtle.Turtle()
-# player_2.speed(0)
-# player_2.shape('square')
-# player_2.shapesize(SIZE, 1)
-# player_2.color('red')
-# player_2.penup()
-# player_2.goto(WIDTH/2 - 30, 0)
-#
-# #CREATE A BALL
-# ball = turtle.Turtle()
-# ball.speed(0)
-# ball.shape('square')
-# ball.color('blue')
-# ball.penup()
-#
-# #SPEED OF BALL AND PLAYERS
-# ball.speed_x = ball.speed_y = 0.5
-# speed_of_movement = 10
-#
-# #CREATE A PLAYERS MOVE
-# def go_up_1():
-#     player_1.sety(player_1.ycor() + speed_of_movement)
-#
-# def go_down_1():
-#     player_1.sety(player_1.ycor() - speed_of_movement)
-#
-# def go_up_2():
-#     player_2.sety(player_2.ycor() + speed_of_movement)
-#
-# def go_down_2():
-#     player_2.sety(player_2.ycor() - speed_of_movement)
-#
-# #PLAYERS ACTIONS
-# window.listen()
-# window.onkeypress(quit, 'q') or window.onkeypress(quit, 'Q')
-# window.onkeypress(go_up_1, 'w') or window.onkeypress(go_up_1, 'W')
-# window.onkeypress(go_down_1, 's') or window.onkeypress(go_down_1, 'S')
-# window.onkeypress(go_up_2, 'Up')
-# window.onkeypress(go_down_2, 'Down')
-#
-# #DISPLAY PLAYER NAMES
-# players = turtle.Turtle()
-# players.speed(0)
-# players.hideturtle()
-# players.color('orange')
-# players.penup()
-# players.goto(-WIDTH / 2 + 40, HEIGHT / 2 - 40)
-# players.write(f'PLAYER 1', font=('Arial', 20, 'normal'))
-# players.goto(WIDTH / 2 - 180, HEIGHT / 2 - 40)
-# players.write(f'PLAYER 2', font=('Arial', 20, 'normal'))
-#
-# #CREATE NOTIFICATION
-# notification = turtle.Turtle()
-# notification.speed(0)
-# notification.hideturtle()
-# notification.color('pink')
-# notification.penup()
-# notification.goto(-125, -HEIGHT / 2 + 50)
-# notification.write('IF YOU WANT QUIT THE GAME PRESS Q', font=('Arial', 10, 'normal'))
-#
-# #DISPLAY GAME RESULTS
-# score = turtle.Turtle()
-# score.speed(0)
-# score.hideturtle()
-# score.color('purple')
-# score.penup()
-# score.goto(int((-WIDTH / 100) * 43), int(-HEIGHT / 20 - 10))
-#
-# #RANDOM START
-# side_x, side_y = randrange(-1, 2, 2), randrange(-1, 2, 2)
-#
-# #CREATE GAME TIMER
-# game_time = turtle.Turtle()
-# game_time.speed(0)
-# game_time.hideturtle()
-# game_time.color('white')
-# game_time.penup()
-# game_time.goto(-75, HEIGHT / 2 - 50)
-#
-# start_time = previous_time = time()
-#
-# running = True
-# while running:
-#     window.update()
-#
-#     #TIMER
-#     t = time()
-#     elapsed_time = t - previous_time
-#     if elapsed_time >= 1:
-#         game_time.clear()
-#         game_time.write(f'GAME TIME: {int(t - start_time)} s', font=('Arial', 15, 'normal'))
-#         previous_time = t
-#
-#     #MOVMENT OF THE BALL
-#     ball.setx(ball.xcor() + ball.speed_x * side_x)
-#     ball.sety(ball.ycor() + ball.speed_y * side_y)
-#
-#     #BOUNCING OFF THE TOP AND BOTTOM WALLS OF THE BALL
-#     if ball.ycor() >= HEIGHT / 2 - 10 or ball.ycor() <= -HEIGHT / 2 + 15:
-#         ball.speed_y *= -1
-#         Beep(1000, 5)
-#
-#     #BOUNCING THE BALL BY PLAYERS
-#     if ball.xcor() == -WIDTH / 2 + 40 and player_1.ycor() + SIZE*10 >= ball.ycor() >= player_1.ycor() - SIZE*10 or \
-#             ball.xcor() == WIDTH / 2 - 50 and player_2.ycor() + SIZE * 10 >= ball.ycor() >= player_2.ycor() - SIZE * 10:
-#         ball.speed_x *= -1
-#         Beep(1000, 5)
-#
-#     #BOUNCING THE BALL WITH THE TOP EDGE
-#     if -WIDTH / 2 + 10 <= ball.xcor() <= -WIDTH / 2 + 39 \
-#             and player_1.ycor() + SIZE*10 + 10 >= ball.ycor() >= player_1.ycor() + SIZE * 10 or \
-#             WIDTH / 2 - 10 >= ball.xcor() >= WIDTH / 2 - 49 \
-#             and player_2.ycor() + SIZE * 10 + 10 >= ball.ycor() >= player_2.ycor() + SIZE * 10:
-#         ball.sety(ball.ycor() + 10)
-#         ball.speed_y *= -1
-#         Beep(1000, 5)
-#
-#     # BOUNCING THE BALL WITH THE BOTTOM EDGE
-#     if -WIDTH / 2 + 10 <= ball.xcor() <= -WIDTH / 2 + 39 \
-#             and player_1.ycor() - SIZE*10 - 10 <= ball.ycor() <= player_1.ycor() - SIZE * 10 or \
-#             WIDTH / 2 - 10 >= ball.xcor() >= WIDTH / 2 - 49 \
-#             and player_2.ycor() - SIZE * 10 - 10 <= ball.ycor() <= player_2.ycor() - SIZE * 10:
-#         ball.sety(ball.ycor() - 10)
-#         ball.speed_y *= -1
-#         Beep(1000, 5)
-#
-#     #BLOCKING THE EXIT FROM THE ARENA (PLAYER 1)
-#     if player_1.ycor() <= -HEIGHT / 2 + SIZE*10 + 10:
-#         player_1.sety(-HEIGHT / 2 + SIZE*10 + 10)
-#
-#     if player_1.ycor() >= HEIGHT / 2 - SIZE*10:
-#         player_1.sety(HEIGHT / 2 - SIZE*10)
-#
-#     #BLOCKING THE EXIT FROM THE ARENA (PLAYER 2)
-#     if player_2.ycor() <= -HEIGHT / 2 + SIZE*10 + 10:
-#         player_2.sety(-HEIGHT / 2 + SIZE*10 + 10)
-#
-#     if player_2.ycor() >= HEIGHT / 2 - SIZE*10:
-#         player_2.sety(HEIGHT / 2 - SIZE*10)
-#
-#     #ENDING THE GAME
-#     if ball.xcor() < -WIDTH / 2 + 5 or ball.xcor() > WIDTH / 2 - 5:
-#         notification.clear()
-#         Beep(500, 100)
-#         #IF PLAYER 1 IS WINNER
-#         if ball.xcor() > 0:
-#             score.write(f'THE WINNER IS PLAYER 1', font=('Arial', int(WIDTH/20), 'normal')) #80
-#         #IF PLAYER 2 IS WINNER
-#         else:
-#             score.write(f'THE WINNER IS PLAYER 2', font=('Arial', int(WIDTH/20), 'normal'))
-#
-#         #GAME CLOSURE NOTIFICATION
-#         notification.goto(-300, -350)
-#         for i in range(6):
-#             countdown = (i - 5) * -1
-#             if countdown == 1:
-#                 notification.write(f'THE PROGRAM WILL CLOSE AFTER 1 SECOND', font=('Arial', 20, 'normal'))
-#             elif countdown == 0:
-#                 notification.goto(-42, -350)
-#                 notification.write('BYE', font=('Arial', 30, 'normal'))
-#             else:
-#                 notification.write(f'THE PROGRAM WILL CLOSE AFTER {countdown} SECONDS', font=('Arial', 20, 'normal'))
-#
-#             sleep(1)
-#             notification.clear()
-#
-#         running = False
