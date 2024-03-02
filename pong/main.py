@@ -1,21 +1,37 @@
 from tkinter import TclError
 from turtle import Screen, mainloop, Terminator
+from keyboard import is_pressed
+from time import time
 
-from components import Player, Ball
+from components import Player, Ball, DisplayInfo
 from helper import to_px
 
 
 class Game:
-    def __init__(self, window: Screen, left_player: Player, right_player: Player, ball: Ball) -> None:
+    def __init__(
+            self,
+            window:
+            Screen,
+            left_player: Player,
+            right_player: Player,
+            ball: Ball,
+            font_size: int,
+            quit_the_game_key: str = "q"
+    ) -> None:
         self._window = window
         self._left_player = left_player
         self._right_player = right_player
         self._ball = ball
-        self.window_height = window.window_height()
         self.window_width = window.window_width()
+        self.window_height = window.window_height()
         self.running = True
         self.delay = 1000 // 60
         self.ball_size_in_px = to_px(ball.size)
+        self.quit_the_game_key = quit_the_game_key
+        self.displaying = DisplayInfo(self.window_width, self.window_height, font_size)
+        self.displaying.quit_the_game_option(quit_the_game_key)
+        self.game_time = time()
+        self.time_from_start_in_seconds = 0
 
     def players_control(self) -> None:
         self._left_player.movement()
@@ -167,11 +183,38 @@ class Game:
                     left_player_bounce_horizontal_position
                 )
 
+    def quit_the_game_by_pressing_the_key(self) -> None:
+        if is_pressed(self.quit_the_game_key):
+            self.running = False
+
+    def end_of_the_game(self) -> None:
+        left_border = -self.window_width / 2 - self.ball_size_in_px / 2
+        if self._ball.get_horizontal_position() < left_border:
+            self.displaying.winner("RIGHT PLAYER")
+            self.displaying.countdown_to_close_the_game()
+            self.running = False
+        elif self._ball.get_horizontal_position() > -left_border:
+            self.displaying.winner("LEFT PLAYER")
+            self.displaying.countdown_to_close_the_game()
+            self.running = False
+
+    def timer(self) -> None:
+        time_now = time()
+        elapsed_time = time_now - self.game_time
+        if elapsed_time >= 1:
+            self.time_from_start_in_seconds += 1
+            self.game_time = time_now
+            self.displaying.timer(self.time_from_start_in_seconds)
+
     def update_game(self) -> None:
         if self.running:
+            self.timer()
             self.players_control()
             self.ball_control()
             self.bounce_the_ball_by_players()
+
+            self.quit_the_game_by_pressing_the_key()
+            self.end_of_the_game()
 
             self._window.update()
             self._window.ontimer(self.update_game, self.delay)
@@ -215,10 +258,11 @@ def main() -> None:
         PLAYERS_MOVEMENT_SPEED
     )
 
-    ball = Ball(1, "blue", 5)
+    ball = Ball(2, "blue", 5)
+    FONT_SIZE = 36
 
     try:
-        game = Game(window, left_player, right_player, ball)
+        game = Game(window, left_player, right_player, ball, FONT_SIZE)
         game.main_loop()
     except (TclError, Terminator):
         pass
