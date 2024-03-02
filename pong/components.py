@@ -1,5 +1,4 @@
 from typing import Tuple
-from turtle import Turtle
 from keyboard import is_pressed
 from random import choice
 from time import sleep
@@ -16,12 +15,9 @@ class Player:
             keys_to_move: Tuple[str, str],
             movement_speed: int
     ) -> None:
-        self._player = Turtle()
-        self._player.speed(0)
+        self._player = turtle_setup(color)
         self._player.shape("square")
         self._player.shapesize(*size)
-        self._player.color(color)
-        self._player.penup()
         self._player.setposition(*position)
         self.size = size
         self.keys_to_move = keys_to_move
