@@ -10,8 +10,7 @@ from helper import to_px
 class Game:
     def __init__(
             self,
-            window:
-            Screen,
+            window: Screen,
             left_player: Player,
             right_player: Player,
             ball: Ball,
@@ -258,7 +257,7 @@ def main() -> None:
         PLAYERS_MOVEMENT_SPEED
     )
 
-    ball = Ball(2, "blue", 5)
+    ball = Ball(4, "blue", 8)
     FONT_SIZE = 36
 
     try:

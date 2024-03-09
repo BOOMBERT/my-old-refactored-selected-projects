@@ -100,7 +100,7 @@ class DisplayInfo:
         for countdown in range(5, -1, -1):
             close_game_message_with_countdown = close_game_message.replace("?", str(countdown))
             countdown_turtle.write(
-                f"{close_game_message_with_countdown if countdown > 1 else close_game_message_with_countdown[:-1]}",
+                f"{close_game_message_with_countdown if countdown != 1 else close_game_message_with_countdown[:-1]}",
                 align="center", font=self.font
             )
 
