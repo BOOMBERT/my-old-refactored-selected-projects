@@ -1,25 +1,35 @@
 import pygame
 from typing import Literal, Tuple
 
-from components import Button, Player
-from helper import get_initial_menu_button_schemas
+from components import Button, Player, Target
+from helper import get_initial_menu_button_schemas, get_target_image_by_difficulty_level
 
 
 class Game:
-    def __init__(self, title: str, window_size: Tuple[int, int], background_image: str, player_image: str) -> None:
+    def __init__(
+            self,
+            fps: int,
+            title: str,
+            window_size: Tuple[int, int],
+            background_image: str,
+            player_image: str,
+            game_time: float
+    ) -> None:
         pygame.init()
         pygame.mouse.set_visible(False)
         pygame.display.set_caption(title)
+        self.fps = fps
         self.window = pygame.display.set_mode(window_size)
         self.background = pygame.image.load(background_image)
         self.clock = pygame.time.Clock()
         self.window_width = window_size[0]
         self.window_height = window_size[1]
+        self.game_time = game_time
         self.player = Player(player_image)
         self.player_group = pygame.sprite.Group()
         self.player_group.add(self.player)
 
-    def initial_menu(self) -> None:
+    def initial_menu(self) -> Literal["easy", "normal", "hard"]:
         buttons = get_initial_menu_button_schemas(self.window_width, self.window_height)
         play_button = pygame.sprite.Group()
         play_button.add(Button(
@@ -82,6 +92,14 @@ class Game:
                             normal_button.sprites()[0].change_image(buttons["normal"]["image"])
                             normal_choiced = False
 
+                    if pygame.sprite.spritecollide(self.player, play_button, False):
+                        if easy_choiced:
+                            return "easy"
+                        elif normal_choiced:
+                            return "normal"
+                        elif hard_choiced:
+                            return "hard"
+
             self.window.blit(self.background, (0, 0))
 
             play_button.draw(self.window)
@@ -93,23 +111,69 @@ class Game:
             self.player_group.update()
 
             pygame.display.flip()
-            self.clock.tick(60)
+            self.clock.tick(self.fps)
 
-    def start(self, difficulty_level: Literal["easy", "normal", "hard"]):
-        pass
+    def play(self, difficulty_level: Literal["easy", "normal", "hard"]) -> int:
+        target_image = get_target_image_by_difficulty_level(difficulty_level)
+        target_group = pygame.sprite.Group()
+        target_group.add(Target(self.window_width, self.window_height, target_image))
 
-    def end_menu(self):
+        BLACK_COLOR = (0, 0, 0)
+        FONT = pygame.font.SysFont("Mono", 28)
+
+        score = 0
+        start_time = pygame.time.get_ticks()
+        running = True
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+
+                if event.type == pygame.MOUSEBUTTONDOWN:
+                    if pygame.sprite.spritecollide(self.player, target_group, True):
+                        target_group.add(Target(self.window_width, self.window_height, target_image))
+                        score += 1
+                    else:
+                        score -= 1
+
+            elapsed_game_time = (pygame.time.get_ticks() - start_time) / 1000
+            if elapsed_game_time >= self.game_time:
+                return score
+
+            game_time_surface = FONT.render(f"Game time = {str(round(elapsed_game_time, 1))}", True, BLACK_COLOR)
+            score_surface = FONT.render(f"Current score = {str(score)}", True, BLACK_COLOR)
+
+            self.window.blit(self.background, (0, 0))
+            self.window.blit(
+                game_time_surface,
+                (game_time_surface.get_rect(center=self.window.get_rect().center)[0], 0)
+            )
+            self.window.blit(
+                score_surface,
+                (score_surface.get_rect(center=self.window.get_rect().center)[0], self.window_height - 75)
+            )
+
+            target_group.draw(self.window)
+            self.player_group.draw(self.window)
+            self.player_group.update()
+
+            pygame.display.flip()
+            self.clock.tick(self.fps)
+
+    def final_menu(self, score: int):
         pass
 
 
 def main():
+    FPS = 60
     GAME_TITLE = "Accuracy tester"
     WINDOW_WIDTH, WINDOW_HEIGHT = 1270, 720
     BACKGROUND_IMAGE_PATH = "assets/game/background_image.jpg"
     PLAYER_IMAGE_PATH = "assets/game/crosshair.png"
+    GAME_TIME = 10 # Game time is given in seconds.
 
-    game = Game(GAME_TITLE, (WINDOW_WIDTH, WINDOW_HEIGHT), BACKGROUND_IMAGE_PATH, PLAYER_IMAGE_PATH)
-    game.initial_menu()
+    game = Game(FPS, GAME_TITLE, (WINDOW_WIDTH, WINDOW_HEIGHT), BACKGROUND_IMAGE_PATH, PLAYER_IMAGE_PATH, GAME_TIME)
+    game.final_menu(game.play(game.initial_menu()))
 
 if __name__ == '__main__':
     main()

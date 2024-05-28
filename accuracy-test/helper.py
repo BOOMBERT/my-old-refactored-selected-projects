@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Literal
 
 
 def get_initial_menu_button_schemas(window_width: str, window_height: str) -> Dict:
@@ -28,3 +28,7 @@ def get_initial_menu_button_schemas(window_width: str, window_height: str) -> Di
             "image": DIFFICULTY_LEVEL_BUTTONS_PATCH + "play.png"
         }
     }
+
+def get_target_image_by_difficulty_level(difficulty_level: Literal["easy", "normal", "hard"]) -> str:
+    TARGET_IMAGES_PATH = "assets/game/target/?_level.png"
+    return TARGET_IMAGES_PATH.replace("?", difficulty_level)
