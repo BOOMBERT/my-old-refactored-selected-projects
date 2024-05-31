@@ -2,8 +2,10 @@ import pygame
 from typing import Literal, Tuple
 
 from components import Button, Player, Target
-from helper import get_initial_menu_button_schemas, get_target_image_by_difficulty_level
+from helper import get_initial_menu_button_schemas, get_target_image_by_difficulty_level, get_final_menu_button_schemas
 
+
+BLACK_COLOR = (0, 0, 0)
 
 class Game:
     def __init__(
@@ -28,8 +30,9 @@ class Game:
         self.player = Player(player_image)
         self.player_group = pygame.sprite.Group()
         self.player_group.add(self.player)
+        self.FONT = pygame.font.SysFont("Mono", 28)
 
-    def initial_menu(self) -> Literal["easy", "normal", "hard"]:
+    def initial_menu(self) -> Literal["easy", "normal", "hard"] | bool:
         buttons = get_initial_menu_button_schemas(self.window_width, self.window_height)
         play_button = pygame.sprite.Group()
         play_button.add(Button(
@@ -113,13 +116,12 @@ class Game:
             pygame.display.flip()
             self.clock.tick(self.fps)
 
-    def play(self, difficulty_level: Literal["easy", "normal", "hard"]) -> int:
+        return False
+
+    def play(self, difficulty_level: Literal["easy", "normal", "hard"]) -> int | bool:
         target_image = get_target_image_by_difficulty_level(difficulty_level)
         target_group = pygame.sprite.Group()
         target_group.add(Target(self.window_width, self.window_height, target_image))
-
-        BLACK_COLOR = (0, 0, 0)
-        FONT = pygame.font.SysFont("Mono", 28)
 
         score = 0
         start_time = pygame.time.get_ticks()
@@ -136,12 +138,12 @@ class Game:
                     else:
                         score -= 1
 
-            elapsed_game_time = (pygame.time.get_ticks() - start_time) / 1000
-            if elapsed_game_time >= self.game_time:
+            remaining_game_time = self.game_time - (pygame.time.get_ticks() - start_time) / 1000
+            if remaining_game_time <= 0:
                 return score
 
-            game_time_surface = FONT.render(f"Game time = {str(round(elapsed_game_time, 1))}", True, BLACK_COLOR)
-            score_surface = FONT.render(f"Current score = {str(score)}", True, BLACK_COLOR)
+            game_time_surface = self.FONT.render(f"Game time = {str(round(remaining_game_time, 1))}", True, BLACK_COLOR)
+            score_surface = self.FONT.render(f"Current score = {str(score)}", True, BLACK_COLOR)
 
             self.window.blit(self.background, (0, 0))
             self.window.blit(
@@ -154,265 +156,95 @@ class Game:
             )
 
             target_group.draw(self.window)
+
             self.player_group.draw(self.window)
             self.player_group.update()
 
             pygame.display.flip()
             self.clock.tick(self.fps)
 
-    def final_menu(self, score: int):
-        pass
+        return False
+
+    def final_menu(self, score: int) -> bool:
+        buttons = get_final_menu_button_schemas(self.window_width, self.window_height)
+        back_to_menu_button = pygame.sprite.Group()
+        back_to_menu_button.add(Button(
+            buttons["back_to_menu"]["horizontal_position"],
+            buttons["back_to_menu"]["vertical_position"],
+            buttons["back_to_menu"]["image"]
+        ))
+
+        exit_button = pygame.sprite.Group()
+        exit_button.add(Button(
+            buttons["exit"]["horizontal_position"],
+            buttons["exit"]["vertical_position"],
+            buttons["exit"]["image"]
+        ))
+
+        back_to_menu_button_hovered = exit_button_hovered = False
+        running = True
+        while running:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    running = False
+
+                if pygame.sprite.spritecollide(self.player, back_to_menu_button, False):
+                    back_to_menu_button.sprites()[0].change_image(buttons["back_to_menu"]["hovered_image"])
+                    back_to_menu_button_hovered = True
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        return True
+                else:
+                    if back_to_menu_button_hovered:
+                        back_to_menu_button.sprites()[0].change_image(buttons["back_to_menu"]["image"])
+                        back_to_menu_button_hovered = False
+
+                if pygame.sprite.spritecollide(self.player, exit_button, False):
+                    exit_button.sprites()[0].change_image(buttons["exit"]["hovered_image"])
+                    exit_button_hovered = True
+                    if event.type == pygame.MOUSEBUTTONDOWN:
+                        return False
+                else:
+                    if exit_button_hovered:
+                        exit_button.sprites()[0].change_image(buttons["exit"]["image"])
+                        exit_button_hovered = False
+
+            score_surface = self.FONT.render(f"Your score = {str(score)}", True, BLACK_COLOR)
+
+            self.window.blit(self.background, (0, 0))
+            self.window.blit(
+                score_surface,
+                (score_surface.get_rect(center=self.window.get_rect().center)[0], self.window_height - 75)
+            )
+
+            back_to_menu_button.draw(self.window)
+            exit_button.draw(self.window)
+
+            self.player_group.draw(self.window)
+            self.player_group.update()
+
+            pygame.display.flip()
+            self.clock.tick(self.fps)
+
+        return False
 
 
 def main():
     FPS = 60
-    GAME_TITLE = "Accuracy tester"
+    GAME_TITLE = "ACCURACY TESTER"
     WINDOW_WIDTH, WINDOW_HEIGHT = 1270, 720
     BACKGROUND_IMAGE_PATH = "assets/game/background_image.jpg"
     PLAYER_IMAGE_PATH = "assets/game/crosshair.png"
     GAME_TIME = 10 # Game time is given in seconds.
 
     game = Game(FPS, GAME_TITLE, (WINDOW_WIDTH, WINDOW_HEIGHT), BACKGROUND_IMAGE_PATH, PLAYER_IMAGE_PATH, GAME_TIME)
-    game.final_menu(game.play(game.initial_menu()))
+    while True:
+        if (difficulty_level := game.initial_menu()) is False:
+            break
+        if (final_score := game.play(difficulty_level)) is False:
+            break
+        if game.final_menu(final_score) is False:
+            break
+
 
 if __name__ == '__main__':
     main()
-
-
-# import sys
-# import random
-# import pygame
-#
-# #CLASSES================================================================================================================
-# class Player(pygame.sprite.Sprite):
-#     def __init__(self):
-#         super().__init__()
-#         self.image = pygame.image.load("assets/game/crosshair.png")
-#         self.rect = pygame.Rect(0, 0, 8, 8)
-#
-#     def update(self):
-#         self.rect.center = pygame.mouse.get_pos()
-#
-#
-# class Target(pygame.sprite.Sprite):
-#     def __init__(self, target_img):
-#         super().__init__()
-#         self.image = pygame.image.load(target_img)
-#         self.rect = self.image.get_rect()
-#         self.x_cord = random.randint(self.rect[2] / 2, SCREEN_WIDTH - self.rect[2] / 2)
-#         self.y_cord = random.randint(self.rect[3] / 2, SCREEN_HEIGHT - self.rect[3] / 2)
-#         self.rect.center = (self.x_cord, self.y_cord)
-#
-#
-# class Button(pygame.sprite.Sprite):
-#     def __init__(self, x_cord, y_cord, button_image):
-#         super().__init__()
-#         self.image = pygame.image.load(button_image)
-#         self.rect = self.image.get_rect()
-#         self.x_cord = x_cord
-#         self.y_cord = y_cord
-#         self.rect.center = (self.x_cord, self.y_cord)
-#
-# #GAME_OPTIONS===========================================================================================================
-# def exit_the_game():
-#     pygame.quit()
-#     sys.exit()
-#
-# pygame.init()
-# pygame.display.set_caption('Accuracy tester')
-# clock = pygame.time.Clock()
-# SCREEN_WIDTH, SCREEN_HEIGHT = 1270, 720
-# screen = pygame.display.set_mode((SCREEN_WIDTH, SCREEN_HEIGHT))
-# background = pygame.image.load("assets/game/background_image.jpg")
-# pygame.mouse.set_visible(False)
-#
-# player = Player()
-# player_group = pygame.sprite.Group()
-# player_group.add(player)
-#
-# #GAME_MENU==============================================================================================================
-# def main_menu():
-#     play_button = pygame.sprite.Group()
-#     play_button.add(Button(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, "assets/initial_menu/buttons/play.png"))
-#
-#     hard_button = pygame.sprite.Group()
-#     hard_button.add(Button(200, 250, "assets/initial_menu/buttons/hard/base.png"))
-#
-#     normal_button = pygame.sprite.Group()
-#     normal_button.add(Button(200, 350, "assets/initial_menu/buttons/normal/base.png"))
-#
-#     easy_button = pygame.sprite.Group()
-#     easy_button.add(Button(200, 450, "assets/initial_menu/buttons/easy/base.png"))
-#
-#     hard_choiced = normal_choiced = easy_choiced = False
-#
-#     def hard_is_choiced():
-#         hard_button.empty()
-#         hard_button.add(Button(200, 250, "assets/initial_menu/buttons/hard/base.png"))
-#
-#     def normal_is_choiced():
-#         normal_button.empty()
-#         normal_button.add(Button(200, 350, "assets/initial_menu/buttons/normal/base.png"))
-#
-#     def easy_is_choiced():
-#         easy_button.empty()
-#         easy_button.add(Button(200, 450, "assets/initial_menu/buttons/easy/base.png"))
-#
-#     while True:
-#         for event in pygame.event.get():
-#             if event.type == pygame.QUIT:
-#                 exit_the_game()
-#
-#             if event.type == pygame.MOUSEBUTTONDOWN:
-#                 if pygame.sprite.spritecollide(player, hard_button, True):
-#                     if normal_choiced:
-#                         normal_is_choiced()
-#                         normal_choiced = False
-#
-#                     elif easy_choiced:
-#                         easy_is_choiced()
-#                         easy_choiced = False
-#
-#                     hard_button.add(Button(200, 250, "assets/initial_menu/buttons/hard/choice.png"))
-#                     hard_choiced = True
-#
-#                 if pygame.sprite.spritecollide(player, normal_button, True):
-#                     if hard_choiced:
-#                         hard_is_choiced()
-#                         hard_choiced = False
-#
-#                     elif easy_choiced:
-#                         easy_is_choiced()
-#                         easy_choiced = False
-#
-#                     normal_button.add(Button(200, 350, "assets/initial_menu/buttons/normal/choice.png"))
-#                     normal_choiced = True
-#
-#                 if pygame.sprite.spritecollide(player, easy_button, True):
-#                     if hard_choiced:
-#                         hard_is_choiced()
-#                         hard_choiced = False
-#
-#                     elif normal_choiced:
-#                         normal_is_choiced()
-#                         normal_choiced = False
-#
-#                     easy_button.add(Button(200, 450, "assets/initial_menu/buttons/easy/choice.png"))
-#                     easy_choiced = True
-#
-#                 if pygame.sprite.spritecollide(player, play_button, True):
-#                     if hard_choiced:
-#                         game('hard')
-#                     elif normal_choiced:
-#                         game('normal')
-#                     elif easy_choiced:
-#                         game('easy')
-#                     else:
-#                         play_button.add(Button(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, "assets/game/play.png"))
-#
-#         screen.blit(background, (0, 0))
-#
-#         play_button.draw(screen)
-#         hard_button.draw(screen)
-#         normal_button.draw(screen)
-#         easy_button.draw(screen)
-#
-#         player_group.draw(screen)
-#         player_group.update()
-#
-#         pygame.display.flip()
-#         clock.tick(144)
-#
-# #GAME===================================================================================================================
-# def game(difficulty_level):
-#     target_group = pygame.sprite.Group()
-#
-#     if difficulty_level == "hard":
-#         img_target = "assets/game/target/hard_level.png"
-#     elif difficulty_level == "normal":
-#         img_target = "assets/game/target/normal_level.png"
-#     else:
-#         img_target = "assets/game/target/easy_level.png"
-#
-#     target_group.add(Target(img_target))
-#
-#     your_score = 0
-#     start_time = pygame.time.get_ticks()
-#
-#     while True:
-#         for event in pygame.event.get():
-#             if event.type == pygame.QUIT:
-#                 exit_the_game()
-#
-#             if event.type == pygame.MOUSEBUTTONDOWN:
-#                 if pygame.sprite.spritecollide(player, target_group, True):
-#                     target_group.add(Target(img_target))
-#                     your_score += 1
-#                 else:
-#                     your_score -= 1
-#
-#         game_time = (pygame.time.get_ticks() - start_time) / 1000
-#         if game_time >= 20:
-#             end_menu(your_score)
-#
-#         screen.blit(background, (0, 0))
-#
-#         target_group.draw(screen)
-#
-#         player_group.draw(screen)
-#         player_group.update()
-#
-#         pygame.display.flip()
-#         clock.tick(144)
-#
-# #MENU_AFTER_GAME========================================================================================================
-# def end_menu(score):
-#     back_to_menu_button = pygame.sprite.Group()
-#     back_to_menu_button.add(Button(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, "assets/final_menu/buttons/back_to_menu/base.png"))
-#
-#     exit_button = pygame.sprite.Group()
-#     exit_button.add(Button(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 200, "assets/final_menu/buttons/exit/base.png"))
-#
-#     font = pygame.font.Font(None, 50)
-#     score_text = font.render(f'Your score {score}', False, (0, 0, 0))
-#
-#     while True:
-#         for event in pygame.event.get():
-#             if event.type == pygame.QUIT:
-#                 exit_the_game()
-#
-#             if pygame.sprite.spritecollide(player, back_to_menu_button, True):
-#                 back_to_menu_button.empty()
-#                 back_to_menu_button.add(Button(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, "assets/final_menu/buttons/back_to_menu/hovered.png"))
-#                 if event.type == pygame.MOUSEBUTTONDOWN:
-#                     main_menu()
-#
-#             else:
-#                 back_to_menu_button.empty()
-#                 back_to_menu_button.add(Button(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2, "assets/final_menu/buttons/back_to_menu/base.png"))
-#
-#             if pygame.sprite.spritecollide(player, exit_button, True):
-#                 exit_button.empty()
-#                 exit_button.add(Button(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 200, "assets/final_menu/buttons/exit/hovered.png"))
-#                 if event.type == pygame.MOUSEBUTTONDOWN:
-#                     exit_the_game()
-#
-#             else:
-#                 exit_button.empty()
-#                 exit_button.add(Button(SCREEN_WIDTH / 2, SCREEN_HEIGHT / 2 + 200, "assets/final_menu/buttons/exit/base.png"))
-#
-#         screen.blit(background, (0, 0))
-#         screen.blit(score_text, ((SCREEN_WIDTH / 2) - (score_text.get_width() / 2), SCREEN_HEIGHT / 2 - 200))
-#
-#         back_to_menu_button.draw(screen)
-#         exit_button.draw(screen)
-#
-#         player_group.draw(screen)
-#         player_group.update()
-#
-#         pygame.display.flip()
-#         clock.tick(144)
-#
-# #START==================================================================================================================
-# if __name__ == '__main__':
-#     main_menu()
